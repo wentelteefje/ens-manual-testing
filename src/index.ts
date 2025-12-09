@@ -1,54 +1,10 @@
 import { normalize, namehash } from "viem/ens";
-import { toBytes } from "viem";
 import { publicClient } from "./client";
 import { selector } from "./erc165_helpers";
-import { keccak256 } from "viem";
+import { registryAbi, resolverAbi } from "./abi";
 
 // THE Registry address
 const registryAddr = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
-
-// Minimal ABI for registry calls
-const registryAbi = [
-  {
-    type: "function",
-    name: "recordExists",
-    stateMutability: "view",
-    inputs: [{ name: "node", type: "bytes32" }],
-    outputs: [{ type: "bool" }],
-  },
-  {
-    type: "function",
-    name: "resolver",
-    stateMutability: "view",
-    inputs: [{ name: "node", type: "bytes32" }],
-    outputs: [{ type: "address" }],
-  },
-] as const;
-
-// shared minimal ABI for resolver calls
-const resolverAbi = [
-  {
-    type: "function",
-    name: "supportsInterface",
-    stateMutability: "pure",
-    inputs: [{ name: "interfaceID", type: "bytes4" }],
-    outputs: [{ type: "bool" }],
-  },
-  {
-    type: "function",
-    name: "addr",
-    stateMutability: "view",
-    inputs: [{ name: "node", type: "bytes32" }],
-    outputs: [{ type: "address" }],
-  },
-  {
-    type: "function",
-    name: "name",
-    stateMutability: "view",
-    inputs: [{ name: "node", type: "bytes32" }],
-    outputs: [{ type: "string" }],
-  },
-] as const;
 
 /**
  * Forward resolution: ENS name -> address
@@ -76,7 +32,7 @@ async function resolveEnsName(name: string) {
     address: resolver,
     abi: resolverAbi,
     functionName: "supportsInterface",
-    args: ["0x3b3b57de"],
+    args: [selector("addr(bytes32)")],
   });
 
   if (!supportsAddr) {
