@@ -1,11 +1,21 @@
 import { normalize, namehash } from "viem/ens";
+import { toBytes } from "viem";
 import { publicClient } from "./client";
+import { selector } from "./erc165_helpers";
+import { keccak256 } from "viem";
 
 // THE Registry address
 const registryAddr = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
 
 // Minimal ABI for registry calls
 const registryAbi = [
+  {
+    type: "function",
+    name: "recordExists",
+    stateMutability: "view",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ type: "bool" }],
+  },
   {
     type: "function",
     name: "resolver",
@@ -30,6 +40,13 @@ const resolverAbi = [
     stateMutability: "view",
     inputs: [{ name: "node", type: "bytes32" }],
     outputs: [{ type: "address" }],
+  },
+  {
+    type: "function",
+    name: "name",
+    stateMutability: "view",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ type: "string" }],
   },
 ] as const;
 
@@ -80,10 +97,53 @@ async function resolveEnsName(name: string) {
 
 /**
  * Reverse resolution: address -> ENS name
- * (for now: use viem’s built-in helper)
+ * Manual implementation of viem's getEnsName({ address })
  */
-async function resolveAddressToEns(address: `0x${string}`) {
-  const name = await publicClient.getEnsName({ address });
+async function resolveAddressToEns(address: string) {
+  // Construct .addr.reverse string
+  const hexWithout0x = address.toLowerCase().slice(2); // drop "0x"
+  const reverseName = `${hexWithout0x}.addr.reverse`;
+
+  const node = namehash(reverseName);
+
+  // 1) Check if reverse record exists for address
+  const recordExists = await publicClient.readContract({
+    address: registryAddr,
+    abi: registryAbi,
+    functionName: "recordExists",
+    args: [node],
+  });
+
+  // Exit if reverse lookup record doesn't exist
+  if (!recordExists) {
+    console.log("No reverse record set for", address);
+    return null;
+  }
+
+  // 2) Obtain reverse resolver from registry
+  const resolver = await publicClient.readContract({
+    address: registryAddr,
+    abi: registryAbi,
+    functionName: "resolver",
+    args: [node],
+  });
+
+  // Look into smart contracts to see if this can even happen for reverse records
+  if (!resolver) {
+    console.log("No resolver set for", address);
+    return null;
+  }
+
+  // DefaultReverseResolver doesn't implement `supportsInterface`; so no check here
+
+  // 3) Call name(bytes32 node)
+  const name = await publicClient.readContract({
+    address: resolver,
+    abi: resolverAbi,
+    functionName: "name",
+    args: [node],
+  });
+
   return name;
 }
 
