@@ -7,3 +7,9 @@ export function selector(signature: string): `0x${string}` {
   const hash = keccak256(toBytes(signature));
   return ("0x" + hash.slice(2, 10)) as `0x${string}`;
 }
+
+export function assertEqual<T>(a: T, b: T, msg?: string): asserts a is T {
+  if (a !== b) {
+    throw new Error(msg ?? `Assertion failed: ${a} !== ${b}`);
+  }
+}

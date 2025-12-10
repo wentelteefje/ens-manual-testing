@@ -5,3 +5,10 @@ export const publicClient = createPublicClient({
   chain: mainnet,
   transport: http(), // uses default public RPC
 });
+
+// For manual CCIP Read
+export const debugClient = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+  ccipRead: false, // disable automatic CCIP Read handling
+});
